@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity extends AppCompatActivity  implements CompoundButton.OnCheckedChangeListener , BlueToothInterface , RecyclerBlueToothAdapter.OnItemClickListener{
+public class MainActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener, BlueToothInterface, RecyclerBlueToothAdapter.OnItemClickListener {
     private static final String TAG = "MainActivity";
     public static final int BLUE_TOOTH_DIALOG = 0x111;
     public static final int BLUE_TOOTH_TOAST = 0x123;
@@ -51,7 +51,11 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
     private SwipeRefreshLayout swipeRefreshLayout;
 
     private BluetoothChatService mBluetoothChatService;
-    private Handler handler = new Handler(){
+
+    /**
+     * Handler
+     */
+    private Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
@@ -61,46 +65,56 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
                     if (msg.what == BluetoothAdapter.STATE_ON) {
                         st.setText("蓝牙已开启");
                         Log.e(TAG, "onCheckedChanged: startIntent");
+
                         //自动刷新
                         swipeRefreshLayout.postDelayed(new Runnable() {
                             @Override
                             public void run() {
+                                /** 执行刷新任务 */
                                 swipeRefreshLayout.setRefreshing(true);
                                 onRefreshListener.onRefresh();
                             }
                         }, 300);
-                        //开启socket监听
+
+                        //开启socketService监听
                         mBluetoothChatService = BluetoothChatService.getInstance(handler);
                         mBluetoothChatService.start();
+
                     } else if (msg.what == BluetoothAdapter.STATE_OFF) {
+                        /** 当蓝牙关闭后, 清空recycler_view数据 */
                         st.setText("蓝牙已关闭");
                         recyclerAdapter.setWifiData(null);
                         recyclerAdapter.notifyDataSetChanged();
                         mBluetoothChatService.stop();
                     }
+
+                    /** 关闭定时器 */
                     timer.cancel();
                     timer = null;
                     task = null;
                     st.setClickable(true);
                 }
                 break;
-            case BLUE_TOOTH_DIALOG:{
-                showProgressDialog((String) msg.obj);
-            }break;
-            case BLUE_TOOTH_TOAST:{
-                dismissProgressDialog();
-                ToastUtil.showText(MainActivity.this, (String) msg.obj);
-            }break;
-            case BLUE_TOOTH_SUCCESS:{
-                dismissProgressDialog();
-                ToastUtil.showText(MainActivity.this , "连接设备" + (String)msg.obj + "成功");
-                Intent intent = new Intent(MainActivity.this , ChatActivity.class);
-                intent.putExtra(ChatActivity.DEVICE_NAME_INTENT , (String) msg.obj);
-                startActivity(intent);
-                //关闭其他资源
-                close();
+                case BLUE_TOOTH_DIALOG: {
+                    showProgressDialog((String) msg.obj);
+                }
+                break;
+                case BLUE_TOOTH_TOAST: {
+                    dismissProgressDialog();
+                    ToastUtil.showText(MainActivity.this, (String) msg.obj);
+                }
+                break;
+                case BLUE_TOOTH_SUCCESS: {
+                    dismissProgressDialog();
+                    ToastUtil.showText(MainActivity.this, "连接设备" + (String) msg.obj + "成功");
+                    Intent intent = new Intent(MainActivity.this, ChatActivity.class);
+                    intent.putExtra(ChatActivity.DEVICE_NAME_INTENT, (String) msg.obj);
+                    startActivity(intent);
+                    //关闭其他资源
+                    close();
 
-            }break;
+                }
+                break;
             }
         }
     };
@@ -126,13 +140,14 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(recyclerAdapter);
 
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter(); //获取本地蓝牙实例
+        //获取本地蓝牙实例
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         //判断蓝牙是否开启来设置状态
-        if(mBluetoothAdapter.isEnabled()){
+        if (mBluetoothAdapter.isEnabled()) {
             //已经开启
             st.setChecked(true);
             st.setText("蓝牙已开启");
-        }else {
+        } else {
             st.setChecked(false);
             st.setText("蓝牙已关闭");
         }
@@ -142,42 +157,51 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
     @Override
     protected void onResume() {
         super.onResume();
+        // 创建广播, 获取设备found, 扫描结束的回调
         mReceiver = new BlueToothReceiver(this);
-        //注册扫描设备广播
+        //注册扫描设备广播 (动态注册, 可以在控制生命周期)
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         registerReceiver(mReceiver, filter); // Don't forget to unregister during onDestroy
+
         filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         registerReceiver(mReceiver, filter);
 
-        if(mBluetoothAdapter.isEnabled())
-        {
-            Log.e(TAG, "onResume: resumeStart" );
+        if (mBluetoothAdapter.isEnabled()) {
+            Log.e(TAG, "onResume: resumeStart");
             mBluetoothChatService = BluetoothChatService.getInstance(handler);
             mBluetoothChatService.start();
         }
     }
 
+    /**
+     * 开关状态改变回调
+     *
+     * @param buttonView
+     * @param isChecked
+     */
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        if(isChecked == true){
+        if (isChecked == true) {
             if (mBluetoothAdapter.getState() != BluetoothAdapter.STATE_ON) {
                 mBluetoothAdapter.enable();  //打开蓝牙
                 st.setText("正在开启蓝牙");
                 ToastUtil.showText(this, "正在开启蓝牙");
             }
-        }else {
+        } else {
             if (mBluetoothAdapter.getState() != BluetoothAdapter.STATE_OFF) {
                 mBluetoothAdapter.disable();  //打开蓝牙
-                st.setText("正在关闭Wifi");
+                st.setText("正在关闭蓝牙");
                 ToastUtil.showText(this, "正在关闭蓝牙");
             }
         }
+
+        /** 启动定时任务 */
         st.setClickable(false);
-        if(timer == null || task == null) {
+        if (timer == null || task == null) {
             timer = new Timer();
             task = new WifiTask();
             task.setChecked(isChecked);
-            timer.schedule(task , 0 , 1000);
+            timer.schedule(task, 0, 1000);
         }
     }
 
@@ -188,25 +212,39 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
         mBluetoothChatService.stop();
     }
 
-    private void close(){
-        if(timer != null)
+    /**
+     * 1. 关闭定时器
+     * 2. 取消扫描
+     * 3. 取消广播
+     */
+    private void close() {
+        if (timer != null)
             timer.cancel();
         //取消扫描
         mBluetoothAdapter.cancelDiscovery();
         swipeRefreshLayout.setRefreshing(false);
         unregisterReceiver(mReceiver);
     }
+
     /**
      * RecyclerView Item 点击处理
+     *
      * @param position
      */
     @Override
     public void onItemClick(int position) {
         showProgressDialog("正在进行连接");
         BlueTooth blueTooth = list.get(position);
+
+        /** 与设备进行socket连接 */
         connectDevice(blueTooth.getMac());
     }
 
+    /**
+     * 与设备进行socket连接
+     *
+     * @param mac
+     */
     private void connectDevice(String mac) {
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mac);
         mBluetoothChatService.connectDevice(device);
@@ -214,6 +252,7 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
 
     /**
      * 进度对话框
+     *
      * @param msg
      */
     public void showProgressDialog(String msg) {
@@ -234,56 +273,70 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
         }
     }
 
+    /**
+     * 定时任务, 目测没任何意义
+     */
     private class WifiTask extends TimerTask {
         private boolean isChecked;
-        public void setChecked(boolean isChecked){
+
+        public void setChecked(boolean isChecked) {
             this.isChecked = isChecked;
         }
 
         @Override
         public void run() {
-            if(isChecked){
+            if (isChecked) {
                 if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_ON)
                     handler.sendEmptyMessage(BluetoothAdapter.STATE_ON);
-            }else
-            {
+            } else {
                 if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_OFF)
                     handler.sendEmptyMessage(BluetoothAdapter.STATE_OFF);
             }
         }
     }
 
+    /**
+     *
+     */
     private SwipeRefreshLayout.OnRefreshListener onRefreshListener = new SwipeRefreshLayout.OnRefreshListener() {
         @Override
         public void onRefresh() {
 
             if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {
                 list.clear();
+
                 //扫描的是已配对的
                 Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
                 if (pairedDevices.size() > 0) {
-                    list.add(new BlueTooth("已配对的设备" ,  BlueTooth.TAG_TOAST));
+                    /** 添加头 */
+                    list.add(new BlueTooth("已配对的设备", BlueTooth.TAG_TOAST));
+
+                    /** 添加一配对的设备到集合中 */
                     for (BluetoothDevice device : pairedDevices) {
                         Log.e(TAG, device.getName() + "\n" + device.getAddress());
-                        list.add(new BlueTooth(device.getName() , device.getAddress() , ""));
+                        list.add(new BlueTooth(device.getName(), device.getAddress(), ""));
                     }
-                    list.add(new BlueTooth("已扫描的设备" , BlueTooth.TAG_TOAST));
+
+                    /** 添加尾 */
+                    list.add(new BlueTooth("已扫描的设备", BlueTooth.TAG_TOAST));
                 } else {
                     ToastUtil.showText(getApplicationContext(), "没有找到已匹对的设备！");
-                    list.add(new BlueTooth("已扫描的设备" , BlueTooth.TAG_TOAST));
+                    list.add(new BlueTooth("已扫描的设备", BlueTooth.TAG_TOAST));
                 }
                 recyclerAdapter.notifyDataSetChanged();
+
                 //开始扫描设备
                 mBluetoothAdapter.startDiscovery();
                 ToastUtil.showText(MainActivity.this, "开始扫描设备");
-            }else{
+            } else {
                 swipeRefreshLayout.setRefreshing(false);
                 ToastUtil.showText(MainActivity.this, "请开启蓝牙");
             }
         }
     };
+
     //数据保存
-    public void save(View view){
+    public void save(View view) {
      /*   if(list  != null){
             SQLiteDatabase db = sqlHelper.getWritableDatabase();
             int row = Integer.parseInt(etRow.getText().toString());
@@ -316,12 +369,13 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
 
     /**
      * 扫描设备回调监听
+     *
      * @param device
      * @param rssi
      */
     @Override
-    public void getBlutToothDevices(BluetoothDevice device , int rssi) {
-        list.add(new BlueTooth(device.getName() , device.getAddress() , rssi + ""));
+    public void getBlutToothDevices(BluetoothDevice device, int rssi) {
+        list.add(new BlueTooth(device.getName(), device.getAddress(), rssi + ""));
         //更新UI
         recyclerAdapter.notifyDataSetChanged();
     }
@@ -329,6 +383,6 @@ public class MainActivity extends AppCompatActivity  implements CompoundButton.O
     @Override
     public void searchFinish() {
         swipeRefreshLayout.setRefreshing(false);
-        ToastUtil.showText(MainActivity.this , "扫描完成" );
+        ToastUtil.showText(MainActivity.this, "扫描完成");
     }
 }

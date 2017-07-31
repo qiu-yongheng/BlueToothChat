@@ -11,14 +11,17 @@ import com.rdc.zzh.bluetoothchat.vinterface.BlueToothInterface;
 
 /**
  * Created by ZengZeHong on 2017/5/15.
+ * 搜索蓝牙设备的广播
  */
 
 public class BlueToothReceiver extends BroadcastReceiver {
     private static final String TAG = "BlueToothReceiver";
     private BlueToothInterface mBlueToothInterface;
-    public BlueToothReceiver(BlueToothInterface mBlueToothInterface){
+
+    public BlueToothReceiver(BlueToothInterface mBlueToothInterface) {
         this.mBlueToothInterface = mBlueToothInterface;
     }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
@@ -30,7 +33,7 @@ public class BlueToothReceiver extends BroadcastReceiver {
             int rssi = intent.getExtras().getShort(BluetoothDevice.EXTRA_RSSI);
             Log.e(TAG, device.getName() + "\n" + device.getAddress() + "\n强度：" + rssi);
             if (mBlueToothInterface != null) {
-                mBlueToothInterface.getBlutToothDevices(device , rssi);
+                mBlueToothInterface.getBlutToothDevices(device, rssi);
             }
         } //搜索完成
         else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED
@@ -38,7 +41,7 @@ public class BlueToothReceiver extends BroadcastReceiver {
             if (mBlueToothInterface != null) {
                 mBlueToothInterface.searchFinish();
             }
-            Log.e(TAG, "onReceive: 搜索完成" );
+            Log.e(TAG, "onReceive: 搜索完成");
         }
     }
 }
